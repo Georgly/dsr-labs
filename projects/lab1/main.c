@@ -5,13 +5,13 @@
  *        
  *        
  */
-
+#define USER_LEDS (GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15)
 #define SWITCH_DELAY    ((uint32_t)400000)
-#define PLL_N     336
-#define PLL_P     4
-#define PLL_Q     7
-#define PLL_M_HSE 10
-#define PLL_M_HSI 20
+#define PLL_N     200
+#define PLL_P     2
+#define PLL_Q     4
+#define PLL_M_HSE 8
+#define PLL_M_HSI 16
 
 typedef enum blink_mul_e
 {
@@ -43,11 +43,11 @@ int main(void)
   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
 
   /* Init LEDs */
-  GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
+  GPIO_InitStructure.GPIO_Pin   = USER_LEDS;//GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
   GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_OUT;
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
-  GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_UP;
+  GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
   GPIO_Init(GPIOD, &GPIO_InitStructure);
 
   GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_0;
@@ -57,9 +57,10 @@ int main(void)
   GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_DOWN;
   GPIO_Init(GPIOA, &GPIO_InitStructure);
   /* Turn all the leds off */
-  GPIO_SetBits(GPIOD, GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15);
-  
+//  GPIO_ResetBits(GPIOD, GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15);
+  GPIOD->ODR &= ~USER_LEDS;
   uint8_t i = 0, pushed = 0;
+  int8_t direction = 1;
     
   while (1)
   {
@@ -70,6 +71,7 @@ int main(void)
       {
         pushed = 1;
         switch_clock();
+        direction = -direction;
       }
     }
     else
@@ -79,9 +81,9 @@ int main(void)
         pushed = 0;
       }
     }
-    blink_led(GPIOD, GPIO_Pin_12 << i, BLINK_MUL_LONG);
+//    blink_led(GPIOD, GPIO_Pin_12 << i, BLINK_MUL_LONG);
     turn_on_led(GPIOD, GPIO_Pin_12 << i, BLINK_MUL_LONG);
-    i = (i + 1) % 4;
+    i = (4 + (i - direction) % 4) % 4;//i = (i + 1) % 4;
   }
 }
 
@@ -100,7 +102,7 @@ void clock_init(void)
 void set_clock(int8_t clock)
 {
   uint32_t StartUpCounter = 0, Status = 1, Pll_src = RCC_PLLCFGR_PLLSRC_HSE, Pll_m = PLL_M_HSE;
-  uint32_t tmp = 0;
+  
   if(clock)
   {
     RCC->CR |= ((uint32_t)RCC_CR_HSEON);
@@ -126,8 +128,7 @@ void set_clock(int8_t clock)
   {
     Pll_src = RCC_PLLCFGR_PLLSRC_HSI;
     Pll_m = PLL_M_HSI;
-    tmp = 1;
-
+    
     if ((RCC->CR & RCC_CR_HSIRDY) != RESET)
     {
       Status = (uint32_t)0x01;
@@ -156,7 +157,7 @@ void set_clock(int8_t clock)
 
 
     /* Configure the main PLL */
-    RCC->PLLCFGR = Pll_m | (PLL_N << 6) | (((PLL_P >> 2) - tmp) << 16) |
+    RCC->PLLCFGR = Pll_m | (PLL_N << 6) | ((PLL_P >> 2) << 16) |
                    (Pll_src) | (PLL_Q << 24); 
 
     /* Enable the main PLL */
@@ -200,17 +201,15 @@ void switch_clock()
 void blink_led(GPIO_TypeDef * port, uint16_t pins, blink_mul_t multiplier)
 {
   uint32_t k = 0;
-
-  GPIO_ResetBits(port, pins);
+  port->ODR &= ~USER_LEDS;
+  port->ODR |= (~pins & USER_LEDS);
   for (k = 0; k < SWITCH_DELAY * multiplier; ++k);
-  GPIO_SetBits(port, pins);
 }
 
 void turn_on_led(GPIO_TypeDef * port, uint16_t pins, blink_mul_t multiplier)
 {
   uint32_t k = 0;
-
-  GPIO_ResetBits(port, pins);
+  port->ODR &= ~USER_LEDS;
+  port->ODR |= pins;
   for (k = 0; k < SWITCH_DELAY * multiplier; ++k);
-  GPIO_SetBits(port, pins);
 }
