@@ -1,5 +1,6 @@
 #include <stm32f4xx.h>
 
+#include "main.h"
 /*
  * @brief 
  *        
@@ -22,15 +23,6 @@ typedef enum blink_mul_e
 void blink_led(GPIO_TypeDef * port, uint16_t pins, blink_mul_t multiplier);
 
 void turn_on_led(GPIO_TypeDef * port, uint16_t pins, blink_mul_t multiplier);
-
-void clock_init(void);
-
-/*
-* int8_t clock - type of source clock for PLL. 1 - HSE, 0 - HSI
-*/
-void set_clock(int8_t clock);
-
-void switch_clock(void);
 
 int main(void)
 {
@@ -57,8 +49,8 @@ int main(void)
   GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_DOWN;
   GPIO_Init(GPIOA, &GPIO_InitStructure);
   /* Turn all the leds off */
-//  GPIO_ResetBits(GPIOD, GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15);
   GPIOD->ODR &= ~USER_LEDS;
+
   uint8_t i = 0, pushed = 0;
   int8_t direction = 1;
     
@@ -81,9 +73,8 @@ int main(void)
         pushed = 0;
       }
     }
-//    blink_led(GPIOD, GPIO_Pin_12 << i, BLINK_MUL_LONG);
     turn_on_led(GPIOD, GPIO_Pin_12 << i, BLINK_MUL_LONG);
-    i = (4 + (i - direction) % 4) % 4;//i = (i + 1) % 4;
+    i = (i + (4 - direction)) % 4;
   }
 }
 
